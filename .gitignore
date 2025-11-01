@@ -1,0 +1,115 @@
+# =============================================================================
+# ProxFleet .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Terraform State and Lock Files - NEVER COMMIT
+# -----------------------------------------------------------------------------
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfplan
+*.plan
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+errored.tfstate
+
+# -----------------------------------------------------------------------------
+# Secrets and Credentials - NEVER COMMIT
+# -----------------------------------------------------------------------------
+config/.env
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*credentials*
+*secret*
+
+# -----------------------------------------------------------------------------
+# Auto-generated tfvars files (symlinks at root)
+# -----------------------------------------------------------------------------
+*.auto.tfvars
+
+# Allow safe config files to be committed (in config/ directory)
+!config/infrastructure.tfvars
+!config/vms.tfvars
+
+# -----------------------------------------------------------------------------
+# Terraform Override Files
+# -----------------------------------------------------------------------------
+terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# -----------------------------------------------------------------------------
+# IDE and Editor Files
+# -----------------------------------------------------------------------------
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# -----------------------------------------------------------------------------
+# Operating System Files
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# -----------------------------------------------------------------------------
+# Backup Files
+# -----------------------------------------------------------------------------
+*.bak
+*.backup
+*.v1.backup
+*.tmp
+*.old
+
+# -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+*.log
+logs/
+*.log.*
+
+# -----------------------------------------------------------------------------
+# Documentation Build Artifacts (if using tools like mkdocs)
+# -----------------------------------------------------------------------------
+site/
+docs/_build/

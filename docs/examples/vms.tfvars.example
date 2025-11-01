@@ -1,0 +1,155 @@
+# =============================================================================
+# ProxFleet VMs Configuration - EXAMPLES
+# =============================================================================
+# Copy this file: cp docs/examples/vms.tfvars.example config/vms.tfvars
+# See docs/EXAMPLES.md for more detailed examples
+
+vms = {
+  # ---------------------------------------------------------------------------
+  # Example 1: Simple VM with DHCP (minimal configuration)
+  # ---------------------------------------------------------------------------
+  web-server = {
+    vm_id    = 100
+    name     = "web-server"
+
+    # Resources (uses defaults from infrastructure.tfvars if not specified)
+    vm_cpu_cores    = 2
+    vm_memory_mb    = 4096
+    vm_disk_size_gb = 50
+
+    # Network - will use DHCP from infrastructure defaults
+    vm_use_dhcp = true
+  }
+
+  # ---------------------------------------------------------------------------
+  # Example 2: VM with static IP
+  # ---------------------------------------------------------------------------
+  database = {
+    vm_id       = 101
+    name        = "database"
+    description = "PostgreSQL database server"
+    tags        = ["database", "production"]
+
+    # Resources
+    vm_cpu_cores    = 4
+    vm_memory_mb    = 8192
+    vm_disk_size_gb = 100
+
+    # Static IP configuration
+    vm_use_dhcp     = false
+    vm_ipv4_address = "192.168.1.10/24"
+    vm_ipv4_gateway = "192.168.1.1"
+    dns_servers     = ["1.1.1.1", "8.8.8.8"]
+  }
+
+  # ---------------------------------------------------------------------------
+  # Example 3: VM with VLAN and static IP
+  # ---------------------------------------------------------------------------
+  dmz-server = {
+    vm_id       = 102
+    name        = "dmz-server"
+    description = "Server in DMZ VLAN"
+    tags        = ["dmz", "security"]
+
+    vm_cpu_cores    = 2
+    vm_memory_mb    = 4096
+    vm_disk_size_gb = 50
+
+    # Network device with VLAN tagging
+    network_devices = [
+      {
+        bridge  = "vmbr0"
+        vlan_id = 100  # DMZ VLAN
+      }
+    ]
+
+    vm_use_dhcp     = false
+    vm_ipv4_address = "10.0.100.10/24"
+    vm_ipv4_gateway = "10.0.100.1"
+  }
+
+  # ---------------------------------------------------------------------------
+  # Example 4: VM with additional data disks
+  # ---------------------------------------------------------------------------
+  storage-server = {
+    vm_id       = 103
+    name        = "storage-server"
+    description = "File server with additional storage"
+
+    vm_cpu_cores    = 4
+    vm_memory_mb    = 8192
+    vm_disk_size_gb = 50  # System disk
+
+    # Additional data disks
+    additional_disks = [
+      {
+        size_gb      = 500
+        datastore_id = "local-lvm"
+        interface    = "scsi1"
+      },
+      {
+        size_gb      = 1000
+        datastore_id = "storage"
+        interface    = "scsi2"
+      }
+    ]
+
+    vm_ipv4_address = "192.168.1.20/24"
+  }
+
+  # ---------------------------------------------------------------------------
+  # Example 5: VM with multiple network interfaces
+  # ---------------------------------------------------------------------------
+  firewall = {
+    vm_id       = 104
+    name        = "firewall"
+    description = "Firewall with multiple interfaces"
+    tags        = ["security", "network"]
+
+    vm_cpu_cores    = 2
+    vm_memory_mb    = 2048
+    vm_disk_size_gb = 30
+
+    # Multiple network interfaces (WAN, LAN, DMZ)
+    network_devices = [
+      {
+        bridge  = "vmbr0"  # WAN
+        vlan_id = 0
+      },
+      {
+        bridge  = "vmbr1"  # LAN
+        vlan_id = 10
+      },
+      {
+        bridge  = "vmbr1"  # DMZ
+        vlan_id = 100
+      }
+    ]
+
+    # First interface IP (additional IPs configured via cloud-init or manually)
+    vm_use_dhcp     = false
+    vm_ipv4_address = "203.0.113.10/24"  # Example WAN IP
+    vm_ipv4_gateway = "203.0.113.1"
+  }
+
+  # ---------------------------------------------------------------------------
+  # Example 6: High-performance VM with custom CPU type
+  # ---------------------------------------------------------------------------
+  app-server = {
+    vm_id       = 105
+    name        = "app-server"
+    description = "Application server with host CPU passthrough"
+    tags        = ["application", "production"]
+
+    # High-performance configuration
+    vm_cpu_type  = "host"  # Pass through host CPU features
+    vm_cpu_cores = 8
+    vm_memory_mb = 16384
+    vm_disk_size_gb = 200
+
+    # Disable disk resize if template already has correct size
+    skip_disk_resize_on_create = false
+
+    vm_ipv4_address = "192.168.1.30/24"
+  }
+}

@@ -1,0 +1,76 @@
+# =============================================================================
+# ProxFleet Infrastructure Configuration - EXAMPLE
+# =============================================================================
+# Copy this file: cp docs/examples/infrastructure.tfvars.example config/infrastructure.tfvars
+# Credentials go in config/.env (see docs/examples/.env.example)
+
+# -----------------------------------------------------------------------------
+# Proxmox Connection (without credentials)
+# -----------------------------------------------------------------------------
+proxmox_endpoint     = "https://your-proxmox.local:8006/api2/json"
+proxmox_insecure     = true  # Set to false if using valid SSL certificates
+proxmox_ssh_username = "root"
+
+# -----------------------------------------------------------------------------
+# Nodes and Template
+# -----------------------------------------------------------------------------
+proxmox_node          = "pve"           # Proxmox node name where VMs will be created
+template_node         = "pve"           # Node where template is located (can be different)
+template_vm_id        = 9000            # VM ID of your template
+template_disk_size_gb = 20              # Size of template's system disk
+
+# -----------------------------------------------------------------------------
+# Storage
+# -----------------------------------------------------------------------------
+vm_datastore_id        = "local-lvm"    # Datastore for VM disks
+cloudinit_datastore_id = "local"        # Datastore for cloud-init images (usually "local")
+
+# -----------------------------------------------------------------------------
+# Default VM Configuration
+# -----------------------------------------------------------------------------
+vm_description = "VM managed by Terraform"
+vm_tags        = ["terraform", "managed"]
+
+# CPU
+vm_cpu_type  = "x86-64-v2-AES"          # CPU type (host, kvm64, x86-64-v2-AES, etc.)
+vm_cpu_cores = 2                         # Default number of CPU cores
+
+# RAM
+vm_memory_mb = 4096                      # Default RAM in MB
+
+# System disk
+vm_disk_size_gb   = 20                   # Default system disk size in GB
+vm_disk_interface = "scsi0"              # Disk interface (scsi0, virtio0, etc.)
+vm_disk_iothread  = true                 # Enable IO thread for better performance
+vm_disk_discard   = "on"                 # Enable TRIM/discard for thin provisioning
+
+# Hardware
+scsi_hardware = "virtio-scsi-single"     # SCSI controller type
+
+# QEMU Guest Agent
+vm_agent_enabled_default = true          # Enable QEMU Guest Agent by default
+vm_agent_timeout         = "5m"          # Timeout for agent operations
+
+# -----------------------------------------------------------------------------
+# Default Network
+# -----------------------------------------------------------------------------
+network_bridge   = "vmbr0"               # Default network bridge
+network_vlan_tag = 0                     # Default VLAN (0 = untagged)
+
+# -----------------------------------------------------------------------------
+# Default IP Configuration
+# -----------------------------------------------------------------------------
+vm_use_dhcp     = false                  # Use DHCP by default (set to false for static IPs)
+vm_ipv4_gateway = "192.168.1.1"          # Default gateway
+dns_servers     = ["1.1.1.1", "8.8.8.8"] # DNS servers
+
+# -----------------------------------------------------------------------------
+# Cloud-init
+# -----------------------------------------------------------------------------
+cloudinit_user = "ubuntu"                # Default user created by cloud-init
+
+# -----------------------------------------------------------------------------
+# Startup
+# -----------------------------------------------------------------------------
+vm_start_on_create = true                # Start VM after creation
+vm_start_on_boot   = true                # Start VM on Proxmox boot

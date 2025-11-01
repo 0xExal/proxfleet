@@ -1,0 +1,10 @@
+# Terraform files
+*.tf text eol=lf
+*.tfvars text eol=lf
+
+# Markdown
+*.md text eol=lf
+
+# Secrets
+.env binary
+secrets.auto.tfvars binary
