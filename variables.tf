@@ -26,6 +26,12 @@ variable "proxmox_ssh_username" {
   default = null
 }
 
+variable "enable_ssh_operations" {
+  description = "Enable SSH-based operations (cleanup, resize wait). Disabled by default. Enable only if you encounter orphaned cloud-init disks or need advanced VM provisioning."
+  type        = bool
+  default     = false
+}
+
 # Cible & source
 variable "proxmox_node" {
   type = string
@@ -211,9 +217,9 @@ variable "vm_agent_enabled_default" {
 }
 
 variable "vm_agent_timeout" {
-  description = "Maximum wait time for QGA data (Terraform format: e.g. 5m, 30s)."
+  description = "Maximum wait time for QGA data (Terraform format: e.g. 15m, 30s)."
   type        = string
-  default     = "5m"
+  default     = "15m"
 }
 
 variable "vm_start_on_create" {

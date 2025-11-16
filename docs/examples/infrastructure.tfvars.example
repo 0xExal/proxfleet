@@ -11,6 +11,14 @@ proxmox_endpoint     = "https://your-proxmox.local:8006/api2/json"
 proxmox_insecure     = true  # Set to false if using valid SSL certificates
 proxmox_ssh_username = "root"
 
+# SSH Operations (OPTIONAL - disabled by default)
+# Enable only if you need:
+#   - Automatic cleanup of orphaned cloud-init disks
+#   - Advanced disk resize wait logic with qemu-guest-agent
+# Most deployments work fine without SSH (via API only)
+# See README.md section "SSH Configuration" for details
+enable_ssh_operations = false
+
 # -----------------------------------------------------------------------------
 # Nodes and Template
 # -----------------------------------------------------------------------------
@@ -49,7 +57,7 @@ scsi_hardware = "virtio-scsi-single"     # SCSI controller type
 
 # QEMU Guest Agent
 vm_agent_enabled_default = true          # Enable QEMU Guest Agent by default
-vm_agent_timeout         = "5m"          # Timeout for agent operations
+vm_agent_timeout         = "15m"         # Timeout for agent operations
 
 # -----------------------------------------------------------------------------
 # Default Network

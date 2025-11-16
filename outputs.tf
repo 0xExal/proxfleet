@@ -75,3 +75,29 @@ output "hosts_file" {
     )
   ])
 }
+
+# ============================================================================
+# SSH Operations Status
+# ============================================================================
+
+output "ssh_operations_status" {
+  description = "SSH operations status and troubleshooting tips"
+  value = var.enable_ssh_operations ? "✓ SSH operations ENABLED (cleanup & resize wait active)" : <<-EOT
+    ⚠ SSH operations DISABLED (default)
+
+    If you encounter errors related to orphaned cloud-init disks:
+
+    1. Manual cleanup (one-time):
+       ssh root@your-proxmox-host
+       pvesm free <datastore>:vm-<VMID>-cloudinit
+
+    2. Or enable SSH operations in infrastructure.tfvars:
+       enable_ssh_operations = true
+
+    SSH operations are optional and only needed for:
+    - Automatic cleanup of orphaned cloud-init disks
+    - Advanced disk resize wait logic
+
+    Most deployments work fine without SSH.
+  EOT
+}

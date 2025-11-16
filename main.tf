@@ -183,20 +183,28 @@ provider "proxmox" {
   password = local.proxmox_password_effective
   insecure = var.proxmox_insecure
 
-  ssh {
-    agent    = true
-    username = local.proxmox_ssh_username_effective
+  # SSH is optional and disabled by default
+  # Uncomment and configure if you need SSH-based operations
+  # (required only if enable_ssh_operations = true)
+  dynamic "ssh" {
+    for_each = var.enable_ssh_operations ? [1] : []
+    content {
+      agent    = true
+      username = local.proxmox_ssh_username_effective
+    }
   }
 }
 
 # Cleanup orphaned cloud-init disk if VM doesn't exist
-# Improvement: more robust error handling and logging
+# Only runs if enable_ssh_operations = true
+# If disabled, Proxmox API will return clear errors for orphaned disks
 resource "null_resource" "ci_cleanup" {
-  for_each = local.vm_configs
+  for_each = var.enable_ssh_operations ? local.vm_configs : {}
 
   triggers = {
-    run_at = timestamp()
-    vmid   = each.value.vm_id
+    vmid                   = each.value.vm_id
+    cloudinit_datastore_id = each.value.cloudinit_datastore_id
+    node_name              = each.value.node_name
   }
 
   provisioner "local-exec" {
@@ -357,11 +365,13 @@ resource "proxmox_virtual_environment_vm" "vm" {
 }
 
 # Resource to manage disk resizing reliably
+# Only runs if enable_ssh_operations = true
+# If disabled, relies on Terraform's built-in timeouts and qemu-guest-agent
 resource "null_resource" "disk_resize_wait" {
-  for_each = {
+  for_each = var.enable_ssh_operations ? {
     for vm_key, cfg in local.vm_configs : vm_key => cfg
     if !cfg.skip_disk_resize_on_create && cfg.vm_disk_size_gb > var.template_disk_size_gb
-  }
+  } : {}
 
   triggers = {
     vm_id        = each.value.vm_id
