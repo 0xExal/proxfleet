@@ -7,17 +7,8 @@
 # -----------------------------------------------------------------------------
 # Proxmox Connection (without credentials)
 # -----------------------------------------------------------------------------
-proxmox_endpoint     = "https://your-proxmox.local:8006/api2/json"
-proxmox_insecure     = true  # Set to false if using valid SSL certificates
-proxmox_ssh_username = "root"
-
-# SSH Operations (OPTIONAL - disabled by default)
-# Enable only if you need:
-#   - Automatic cleanup of orphaned cloud-init disks
-#   - Advanced disk resize wait logic with qemu-guest-agent
-# Most deployments work fine without SSH (via API only)
-# See README.md section "SSH Configuration" for details
-enable_ssh_operations = false
+proxmox_endpoint = "https://your-proxmox.local:8006/api2/json"
+proxmox_insecure = true  # Set to false if using valid SSL certificates
 
 # -----------------------------------------------------------------------------
 # Nodes and Template

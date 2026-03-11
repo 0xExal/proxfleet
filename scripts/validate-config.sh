@@ -90,7 +90,7 @@ if [ -f "config/.env" ]; then
     if grep -q "^SSH_PUBLIC_KEY=" config/.env; then
         print_success "SSH_PUBLIC_KEY defined"
     else
-        print_error "SSH_PUBLIC_KEY not defined in .env"
+        print_warning "SSH_PUBLIC_KEY not defined in .env (optional, password auth still works)"
     fi
 fi
 
@@ -105,11 +105,7 @@ if [ -f "config/infrastructure.tfvars" ]; then
     # Check template_vm_id
     if grep -q "^template_vm_id" config/infrastructure.tfvars; then
         TEMPLATE_ID=$(grep "^template_vm_id" config/infrastructure.tfvars | sed 's/.*=\s*//' | tr -d ' ')
-        if [ "$TEMPLATE_ID" = "9000" ]; then
-            print_success "template_vm_id defined (${TEMPLATE_ID})"
-        else
-            print_success "template_vm_id defined (${TEMPLATE_ID})"
-        fi
+        print_success "template_vm_id defined (${TEMPLATE_ID})"
     else
         print_error "template_vm_id not defined"
     fi
@@ -154,10 +150,10 @@ else
     print_error "Terraform not installed"
 fi
 
-if command -v ssh >/dev/null 2>&1; then
-    print_success "SSH available"
+if command -v jq >/dev/null 2>&1; then
+    print_success "jq installed"
 else
-    print_error "SSH not available"
+    print_warning "jq not installed (optional, used for advanced validation)"
 fi
 
 # Run Terraform validate if possible

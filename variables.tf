@@ -21,17 +21,6 @@ variable "proxmox_insecure" {
   default = false
 }
 
-variable "proxmox_ssh_username" {
-  type    = string
-  default = null
-}
-
-variable "enable_ssh_operations" {
-  description = "Enable SSH-based operations (cleanup, resize wait). Disabled by default. Enable only if you encounter orphaned cloud-init disks or need advanced VM provisioning."
-  type        = bool
-  default     = false
-}
-
 # Cible & source
 variable "proxmox_node" {
   type = string
@@ -314,8 +303,13 @@ variable "vms" {
 
   validation {
     condition = alltrue([
-      for k, v in var.vms : v.vm_id > 100 && v.vm_id < 999999999
+      for k, v in var.vms : v.vm_id >= 100 && v.vm_id < 999999999
     ])
     error_message = "VM IDs must be between 100 and 999999999."
+  }
+
+  validation {
+    condition     = length(distinct([for k, v in var.vms : v.vm_id])) == length(var.vms)
+    error_message = "VM IDs must be unique. Found duplicates."
   }
 }

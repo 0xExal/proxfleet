@@ -1,5 +1,5 @@
 locals {
-  env_file_path = "config/.env"
+  env_file_path = "${path.module}/config/.env"
   env_lines     = fileexists(local.env_file_path) ? split("\n", file(local.env_file_path)) : []
 
   env_pairs = [
@@ -65,22 +65,13 @@ locals {
     null
   )
 
-  proxmox_ssh_username_effective = try(
-    coalesce(
-      try(var.proxmox_ssh_username, null),
-      lookup(local.env_vars, "PROXMOX_SSH_USERNAME", null),
-      "root"
-    ),
-    "root"
-  )
-
   default_network_devices = (
     length(var.network_devices) > 0
     ? [
       for dev in var.network_devices : {
-        bridge  = lookup(dev, "bridge", var.network_bridge)
-        model   = lookup(dev, "model", "virtio")
-        vlan_id = lookup(dev, "vlan_id", var.network_vlan_tag)
+        bridge  = dev.bridge
+        model   = coalesce(dev.model, "virtio")
+        vlan_id = coalesce(dev.vlan_id, var.network_vlan_tag)
       }
     ]
     : [
@@ -116,29 +107,23 @@ locals {
       disk_interface   = coalesce(vm.disk_interface, var.vm_disk_interface)
       disk_iothread    = coalesce(vm.disk_iothread, var.vm_disk_iothread)
       disk_discard     = coalesce(vm.disk_discard, var.vm_disk_discard)
-      network_bridge   = coalesce(vm.network_bridge, var.network_bridge)
-      network_vlan_tag = coalesce(vm.network_vlan_tag, var.network_vlan_tag)
       scsi_hardware    = coalesce(vm.scsi_hardware, var.scsi_hardware)
       additional_disks = coalesce(vm.additional_disks, [])
 
       network_devices = (
-        length(coalesce(try(vm.network_devices, []), [])) > 0
+        length(coalesce(vm.network_devices, [])) > 0
         ? [
-          for dev in coalesce(try(vm.network_devices, []), []) : {
-            bridge = try(dev.bridge, null) != null ? dev.bridge : (
-              try(vm.network_bridge, null) != null ? vm.network_bridge : var.network_bridge
-            )
-            model = coalesce(try(dev.model, null), "virtio")
-            vlan_id = try(dev.vlan_id, null) != null ? dev.vlan_id : (
-              try(vm.network_vlan_tag, null) != null ? vm.network_vlan_tag : var.network_vlan_tag
-            )
+          for dev in coalesce(vm.network_devices, []) : {
+            bridge  = dev.bridge
+            model   = coalesce(dev.model, "virtio")
+            vlan_id = coalesce(dev.vlan_id, vm.network_vlan_tag, var.network_vlan_tag)
           }
         ]
         : [
           for idx, dev in local.default_network_devices : {
-            bridge  = idx == 0 && try(vm.network_bridge, null) != null ? vm.network_bridge : dev.bridge
+            bridge  = idx == 0 && vm.network_bridge != null ? vm.network_bridge : dev.bridge
             model   = dev.model
-            vlan_id = idx == 0 && try(vm.network_vlan_tag, null) != null ? vm.network_vlan_tag : dev.vlan_id
+            vlan_id = idx == 0 && vm.network_vlan_tag != null ? vm.network_vlan_tag : dev.vlan_id
           }
         ]
       )
@@ -151,10 +136,10 @@ locals {
       ssh_public_key     = vm.ssh_public_key != null ? vm.ssh_public_key : local.ssh_public_key_effective
       cloudinit_password = vm.cloudinit_password_crypted != null ? vm.cloudinit_password_crypted : local.cloudinit_password_effective
 
-      agent_enabled   = coalesce(try(vm.agent_enabled, null), var.vm_agent_enabled_default)
-      agent_timeout   = coalesce(try(vm.agent_timeout, null), var.vm_agent_timeout)
-      start_on_create = coalesce(try(vm.start_on_create, null), var.vm_start_on_create)
-      start_on_boot   = coalesce(try(vm.start_on_boot, null), var.vm_start_on_boot)
+      agent_enabled   = coalesce(vm.agent_enabled, var.vm_agent_enabled_default)
+      agent_timeout   = coalesce(vm.agent_timeout, var.vm_agent_timeout)
+      start_on_create = coalesce(vm.start_on_create, var.vm_start_on_create)
+      start_on_boot   = coalesce(vm.start_on_boot, var.vm_start_on_boot)
     }
   }
 
@@ -182,65 +167,6 @@ provider "proxmox" {
   username = local.proxmox_username_effective
   password = local.proxmox_password_effective
   insecure = var.proxmox_insecure
-
-  # SSH is optional and disabled by default
-  # Uncomment and configure if you need SSH-based operations
-  # (required only if enable_ssh_operations = true)
-  dynamic "ssh" {
-    for_each = var.enable_ssh_operations ? [1] : []
-    content {
-      agent    = true
-      username = local.proxmox_ssh_username_effective
-    }
-  }
-}
-
-# Cleanup orphaned cloud-init disk if VM doesn't exist
-# Only runs if enable_ssh_operations = true
-# If disabled, Proxmox API will return clear errors for orphaned disks
-resource "null_resource" "ci_cleanup" {
-  for_each = var.enable_ssh_operations ? local.vm_configs : {}
-
-  triggers = {
-    vmid                   = each.value.vm_id
-    cloudinit_datastore_id = each.value.cloudinit_datastore_id
-    node_name              = each.value.node_name
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOC
-      set -eo pipefail
-
-      SSH="ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10"
-      SSH_USER="${local.proxmox_ssh_username_effective}"
-      SSH_HOST="${trimsuffix(trimprefix(local.proxmox_endpoint_effective, "https://"), ":8006/api2/json")}"
-      VMID="${each.value.vm_id}"
-      DATASTORE="${each.value.cloudinit_datastore_id}"
-
-      echo "Checking cloud-init cleanup for VM $VMID..."
-
-      # Check if VM exists
-      if ! $SSH $SSH_USER@$SSH_HOST "qm status $VMID >/dev/null 2>&1"; then
-        echo "VM $VMID doesn't exist, cleaning up orphaned cloud-init files..."
-
-        # Attempt cleanup via pvesm (clean method)
-        $SSH $SSH_USER@$SSH_HOST "pvesm free $DATASTORE:images/$VMID/vm-$VMID-cloudinit.qcow2 2>/dev/null || echo 'pvesm free failed (normal if already cleaned)'"
-
-        # Cleanup residual files (backup)
-        $SSH $SSH_USER@$SSH_HOST "rm -f /var/lib/vz/images/$VMID/vm-$VMID-cloudinit.qcow2 2>/dev/null || true"
-        $SSH $SSH_USER@$SSH_HOST "rmdir /var/lib/vz/images/$VMID 2>/dev/null || true"
-
-        # Alternative attempt for certain datastores
-        $SSH $SSH_USER@$SSH_HOST "pvesm free $DATASTORE:vm-$VMID-cloudinit 2>/dev/null || true"
-
-        echo "Cloud-init cleanup completed for VM $VMID"
-      else
-        echo "VM $VMID exists, no cleanup needed"
-      fi
-    EOC
-
-    on_failure = continue
-  }
 }
 
 resource "proxmox_virtual_environment_vm" "vm" {
@@ -250,7 +176,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
   name        = each.value.name
   description = each.value.description
   vm_id       = each.value.vm_id
-  tags        = each.value.tags
+  tags        = sort(each.value.tags)
 
   clone {
     node_name = each.value.template_node
@@ -268,7 +194,10 @@ resource "proxmox_virtual_environment_vm" "vm" {
     type    = each.value.cpu_type
   }
 
-  memory { dedicated = each.value.vm_memory_mb }
+  memory {
+    dedicated = each.value.vm_memory_mb
+    floating  = 0
+  }
 
   scsi_hardware = each.value.scsi_hardware
 
@@ -299,7 +228,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
     content {
       bridge  = network_device.value.bridge
       model   = network_device.value.model
-      vlan_id = network_device.value.vlan_id
+      vlan_id = network_device.value.vlan_id > 0 ? network_device.value.vlan_id : null
     }
   }
 
@@ -355,78 +284,14 @@ resource "proxmox_virtual_environment_vm" "vm" {
       error_message = "Number of CPU cores must be between 1 and 128 for ${each.key}."
     }
 
-    # Ignore changes to cloud-init password after creation
+    precondition {
+      condition     = each.value.vm_use_dhcp || each.value.vm_ipv4_address != null
+      error_message = "vm_ipv4_address is required when vm_use_dhcp = false for ${each.key}."
+    }
+
     ignore_changes = [
-      initialization[0].user_account[0].password,
+      initialization,
+      started,
     ]
   }
-
-  depends_on = [null_resource.ci_cleanup]
-}
-
-# Resource to manage disk resizing reliably
-# Only runs if enable_ssh_operations = true
-# If disabled, relies on Terraform's built-in timeouts and qemu-guest-agent
-resource "null_resource" "disk_resize_wait" {
-  for_each = var.enable_ssh_operations ? {
-    for vm_key, cfg in local.vm_configs : vm_key => cfg
-    if !cfg.skip_disk_resize_on_create && cfg.vm_disk_size_gb > var.template_disk_size_gb
-  } : {}
-
-  triggers = {
-    vm_id        = each.value.vm_id
-    disk_size    = each.value.vm_disk_size_gb
-    node_name    = each.value.node_name
-    proxmox_host = trimsuffix(trimprefix(local.proxmox_endpoint_effective, "https://"), ":8006/api2/json")
-    ssh_user     = local.proxmox_ssh_username_effective
-  }
-
-  # Wait for VM to be ready and qemu-guest-agent to be available
-  provisioner "local-exec" {
-    command = <<-EOC
-      set -eo pipefail
-
-      SSH="ssh -o BatchMode=yes -o StrictHostKeyChecking=no ${self.triggers.ssh_user}@${self.triggers.proxmox_host}"
-      VMID=${self.triggers.vm_id}
-      MAX_WAIT=300
-      ELAPSED=0
-
-      echo "Waiting for VM $VMID to be ready for resize..."
-
-      # Wait for VM to start
-      while [ $ELAPSED -lt $MAX_WAIT ]; do
-        STATUS=$($SSH "qm status $VMID" | grep -oP '(?<=status: )\w+' || echo "unknown")
-        if [ "$STATUS" = "running" ]; then
-          echo "VM $VMID is started"
-          break
-        fi
-        echo "VM status: $STATUS, waiting... ($ELAPSED/$MAX_WAIT s)"
-        sleep 5
-        ELAPSED=$((ELAPSED + 5))
-      done
-
-      # Wait for qemu-guest-agent to respond (if enabled)
-      if ${each.value.agent_enabled}; then
-        echo "Waiting for qemu-guest-agent..."
-        ELAPSED=0
-        while [ $ELAPSED -lt $MAX_WAIT ]; do
-          if $SSH "qm agent $VMID ping 2>/dev/null" >/dev/null 2>&1; then
-            echo "qemu-guest-agent responding for VM $VMID"
-            sleep 5  # Additional wait for stability
-            break
-          fi
-          echo "qemu-guest-agent not responding yet... ($ELAPSED/$MAX_WAIT s)"
-          sleep 10
-          ELAPSED=$((ELAPSED + 10))
-        done
-      else
-        echo "Guest agent disabled, waiting 30s for stabilization..."
-        sleep 30
-      fi
-
-      echo "VM $VMID ready for operations"
-    EOC
-  }
-
-  depends_on = [proxmox_virtual_environment_vm.vm]
 }

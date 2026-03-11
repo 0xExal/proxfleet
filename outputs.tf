@@ -13,7 +13,7 @@ output "vms" {
       id     = vm.vm_id
       name   = vm.name
       node   = vm.node_name
-      ip     = try([for ip in vm.ipv4_addresses : ip if !startswith(ip, "127.")][0], "Pending...")
+      ip     = try([for ip in flatten(vm.ipv4_addresses) : ip if !startswith(ip, "127.")][0], "Pending...")
       cpu    = vm.cpu[0].cores
       memory = "${vm.memory[0].dedicated / 1024} GB"
       status = vm.started ? "Running" : "Stopped"
@@ -30,7 +30,7 @@ output "ips" {
   value = {
     for key, vm in proxmox_virtual_environment_vm.vm :
     key => try(
-      [for ip in vm.ipv4_addresses : ip if !startswith(ip, "127.")][0],
+      [for ip in flatten(vm.ipv4_addresses) : ip if !startswith(ip, "127.")][0],
       "Pending..."
     )
   }
@@ -41,7 +41,7 @@ output "ssh" {
   value = {
     for key, vm in proxmox_virtual_environment_vm.vm :
     key => try(
-      "ssh ${local.vm_configs[key].cloudinit_user}@${[for ip in vm.ipv4_addresses : ip if !startswith(ip, "127.")][0]}",
+      "ssh ${local.vm_configs[key].cloudinit_user}@${[for ip in flatten(vm.ipv4_addresses) : ip if !startswith(ip, "127.")][0]}",
       "IP not available"
     )
   }
@@ -70,34 +70,9 @@ output "hosts_file" {
   value = join("\n", [
     for key, vm in proxmox_virtual_environment_vm.vm :
     try(
-      "${[for ip in vm.ipv4_addresses : ip if !startswith(ip, "127.")][0]}\t${vm.name}",
+      "${[for ip in flatten(vm.ipv4_addresses) : ip if !startswith(ip, "127.")][0]}\t${vm.name}",
       "# ${vm.name} - IP not available"
     )
   ])
 }
 
-# ============================================================================
-# SSH Operations Status
-# ============================================================================
-
-output "ssh_operations_status" {
-  description = "SSH operations status and troubleshooting tips"
-  value = var.enable_ssh_operations ? "✓ SSH operations ENABLED (cleanup & resize wait active)" : <<-EOT
-    ⚠ SSH operations DISABLED (default)
-
-    If you encounter errors related to orphaned cloud-init disks:
-
-    1. Manual cleanup (one-time):
-       ssh root@your-proxmox-host
-       pvesm free <datastore>:vm-<VMID>-cloudinit
-
-    2. Or enable SSH operations in infrastructure.tfvars:
-       enable_ssh_operations = true
-
-    SSH operations are optional and only needed for:
-    - Automatic cleanup of orphaned cloud-init disks
-    - Advanced disk resize wait logic
-
-    Most deployments work fine without SSH.
-  EOT
-}

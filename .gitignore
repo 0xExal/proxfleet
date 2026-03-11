@@ -6,7 +6,6 @@
 # Terraform State and Lock Files - NEVER COMMIT
 # -----------------------------------------------------------------------------
 .terraform/
-.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfstate.backup

@@ -21,8 +21,8 @@ ProxFleet simplifies VM provisioning on Proxmox VE using Terraform. It separates
 - VLAN tagging
 - Cloud-init integration
 - QEMU Guest Agent support for reliable disk resizing
-- Automatic cloud-init cleanup
 - Input validation
+- Per-VM override of any global default
 
 ---
 
@@ -33,7 +33,6 @@ ProxFleet simplifies VM provisioning on Proxmox VE using Terraform. It separates
 - Terraform >= 1.5.0
 - Proxmox VE 7.x or 8.x
 - VM template with cloud-init and qemu-guest-agent
-- SSH access to Proxmox node (optional, see [SSH Configuration](#ssh-configuration))
 
 ### Setup
 
@@ -100,53 +99,6 @@ See [docs/EXAMPLES.md](docs/EXAMPLES.md) for more examples.
 
 ---
 
-## SSH Configuration
-
-**SSH is OPTIONAL and DISABLED by default.**
-
-ProxFleet can operate entirely via the Proxmox API without SSH access. However, SSH operations can be enabled for advanced use cases.
-
-### When to Enable SSH
-
-Enable `enable_ssh_operations = true` if you need:
-- **Automatic cleanup** of orphaned cloud-init disks
-- **Advanced disk resize** wait logic with qemu-guest-agent verification
-
-### How to Enable SSH
-
-1. **In your `config/infrastructure.tfvars`:**
-   ```hcl
-   enable_ssh_operations = true
-   proxmox_ssh_username  = "root"  # or your SSH user
-   ```
-
-2. **Configure SSH access** to your Proxmox host:
-   ```bash
-   # Option A: SSH key (recommended)
-   ssh-copy-id root@your-proxmox-host
-
-   # Option B: SSH agent
-   eval $(ssh-agent)
-   ssh-add ~/.ssh/id_rsa
-   ```
-
-3. **Test SSH connection:**
-   ```bash
-   ssh root@your-proxmox-host "qm list"
-   ```
-
-### Default Behavior (SSH Disabled)
-
-When SSH is disabled:
-- ✅ VMs are created/managed via Proxmox API
-- ✅ Faster operations (no SSH overhead)
-- ✅ No SSH dependencies
-- ⚠️ Orphaned cloud-init disks must be cleaned manually (rare)
-
-**Check `terraform output ssh_operations_status` for troubleshooting tips.**
-
----
-
 ## Troubleshooting
 
 ### Disk resize fails or times out
@@ -170,17 +122,11 @@ skip_disk_resize_on_create = true
 
 ### Cloud-init disk exists error
 
-**If SSH operations are disabled (default)**, manually clean orphaned disks:
+Manually clean orphaned disks on the Proxmox node:
 ```bash
 ssh root@proxmox-node
 pvesm free <datastore>:vm-<VMID>-cloudinit
 # Example: pvesm free local-lvm:vm-100-cloudinit
-```
-
-**Or enable automatic cleanup:**
-```hcl
-# config/infrastructure.tfvars
-enable_ssh_operations = true
 ```
 
 Then run `terraform apply` again.
