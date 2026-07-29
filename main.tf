@@ -85,17 +85,24 @@ locals {
 
   vm_configs = {
     for vm_key, vm in var.vms : vm_key => {
-      vm_id                      = vm.vm_id
-      name                       = coalesce(vm.name, vm_key)
-      description                = coalesce(vm.description, var.vm_description)
-      tags                       = coalesce(vm.tags, var.vm_tags)
-      node_name                  = coalesce(vm.node_name, var.proxmox_node)
-      template_node              = coalesce(vm.template_node, var.template_node)
-      template_vm_id             = coalesce(vm.template_vm_id, var.template_vm_id)
-      vm_datastore_id            = coalesce(vm.vm_datastore_id, var.vm_datastore_id)
-      cloudinit_datastore_id     = coalesce(vm.cloudinit_datastore_id, var.cloudinit_datastore_id)
-      vm_cpu_cores               = coalesce(vm.vm_cpu_cores, var.vm_cpu_cores)
-      vm_memory_mb               = coalesce(vm.vm_memory_mb, var.vm_memory_mb)
+      vm_id                  = vm.vm_id
+      name                   = coalesce(vm.name, vm_key)
+      description            = coalesce(vm.description, var.vm_description)
+      tags                   = coalesce(vm.tags, var.vm_tags)
+      node_name              = coalesce(vm.node_name, var.proxmox_node)
+      template_node          = coalesce(vm.template_node, var.template_node)
+      template_vm_id         = coalesce(vm.template_vm_id, var.template_vm_id)
+      vm_datastore_id        = coalesce(vm.vm_datastore_id, var.vm_datastore_id)
+      cloudinit_datastore_id = coalesce(vm.cloudinit_datastore_id, var.cloudinit_datastore_id)
+      vm_cpu_cores           = coalesce(vm.vm_cpu_cores, var.vm_cpu_cores)
+      vm_memory_mb           = coalesce(vm.vm_memory_mb, var.vm_memory_mb)
+      balloon_enabled        = coalesce(vm.balloon_enabled, var.vm_balloon_enabled)
+      # floating = 0 disables ballooning; floating = dedicated allows the full range
+      vm_memory_floating_mb = (
+        coalesce(vm.balloon_enabled, var.vm_balloon_enabled)
+        ? coalesce(vm.vm_memory_floating_mb, var.vm_memory_floating_mb, coalesce(vm.vm_memory_mb, var.vm_memory_mb))
+        : 0
+      )
       vm_disk_size_gb            = coalesce(vm.vm_disk_size_gb, var.vm_disk_size_gb)
       skip_disk_resize_on_create = coalesce(vm.skip_disk_resize_on_create, var.vm_skip_disk_resize_on_create)
       disk_size_to_apply = (
@@ -103,7 +110,7 @@ locals {
         ? var.template_disk_size_gb
         : coalesce(vm.vm_disk_size_gb, var.vm_disk_size_gb)
       )
-      cpu_type         = coalesce(vm.cpu_type, var.vm_cpu_type)
+      vm_cpu_type      = coalesce(vm.vm_cpu_type, var.vm_cpu_type)
       disk_interface   = coalesce(vm.disk_interface, var.vm_disk_interface)
       disk_iothread    = coalesce(vm.disk_iothread, var.vm_disk_iothread)
       disk_discard     = coalesce(vm.disk_discard, var.vm_disk_discard)
@@ -138,6 +145,7 @@ locals {
 
       agent_enabled   = coalesce(vm.agent_enabled, var.vm_agent_enabled_default)
       agent_timeout   = coalesce(vm.agent_timeout, var.vm_agent_timeout)
+      protection      = coalesce(vm.protection, var.vm_protection)
       start_on_create = coalesce(vm.start_on_create, var.vm_start_on_create)
       start_on_boot   = coalesce(vm.start_on_boot, var.vm_start_on_boot)
     }
@@ -183,20 +191,19 @@ resource "proxmox_virtual_environment_vm" "vm" {
     vm_id     = each.value.template_vm_id
   }
 
-  # Don't force BIOS, keep the template's BIOS setting
-  # bios = "seabios"
+  # bios not set: keep the template's setting
 
   operating_system { type = "l26" }
 
   cpu {
     cores   = each.value.vm_cpu_cores
     sockets = 1
-    type    = each.value.cpu_type
+    type    = each.value.vm_cpu_type
   }
 
   memory {
     dedicated = each.value.vm_memory_mb
-    floating  = 0
+    floating  = each.value.vm_memory_floating_mb
   }
 
   scsi_hardware = each.value.scsi_hardware
@@ -232,7 +239,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
     }
   }
 
-  boot_order = ["scsi0", "net0"]
+  boot_order = [each.value.disk_interface, "net0"]
 
   initialization {
     datastore_id = each.value.cloudinit_datastore_id
@@ -248,35 +255,39 @@ resource "proxmox_virtual_environment_vm" "vm" {
 
     user_account {
       username = each.value.cloudinit_user
-      password = lookup(local.cloudinit_passwords, each.key)
-      keys     = lookup(local.ssh_authorized_keys, each.key)
+      password = local.cloudinit_passwords[each.key]
+      keys     = local.ssh_authorized_keys[each.key]
     }
   }
 
-  # QEMU Guest Agent (recommended for reliable disk resizing)
   agent {
     enabled = each.value.agent_enabled
     timeout = each.value.agent_timeout
   }
 
-  started = each.value.start_on_create
-  on_boot = each.value.start_on_boot
+  started    = each.value.start_on_create
+  on_boot    = each.value.start_on_boot
+  protection = each.value.protection
 
   lifecycle {
-    # Validations
     precondition {
       condition     = each.value.vm_disk_size_gb >= var.template_disk_size_gb
       error_message = "VM disk size (${each.value.vm_disk_size_gb}GB) must be >= template size (${var.template_disk_size_gb}GB) for ${each.key}."
     }
 
     precondition {
-      condition     = can(regex("^[a-zA-Z0-9-_]+$", each.value.name))
-      error_message = "VM name '${each.value.name}' must contain only letters, numbers, hyphens and underscores."
+      condition     = can(regex("^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$", each.value.name))
+      error_message = "VM name '${each.value.name}' must be a valid DNS name (letters, digits, hyphens."
     }
 
     precondition {
       condition     = each.value.vm_memory_mb >= 512
       error_message = "Memory must be at least 512 MB for ${each.key}."
+    }
+
+    precondition {
+      condition     = each.value.vm_memory_floating_mb <= each.value.vm_memory_mb
+      error_message = "Floating memory (${each.value.vm_memory_floating_mb}MB) must be <= dedicated memory (${each.value.vm_memory_mb}MB) for ${each.key}."
     }
 
     precondition {

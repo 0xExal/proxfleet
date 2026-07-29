@@ -1,4 +1,4 @@
-.PHONY: help init plan apply destroy validate fmt clean setup
+.PHONY: help init plan apply destroy output validate fmt clean setup
 
 .DEFAULT_GOAL := help
 
@@ -50,7 +50,6 @@ fmt: ## Format Terraform files
 
 ##@ Cleanup
 
-clean: ## Remove Terraform cache
+clean: ## Remove Terraform cache (keeps .terraform.lock.hcl, which should be committed)
 	@rm -rf .terraform
-	@rm -f .terraform.lock.hcl
 	@rm -f *.tfstate.backup

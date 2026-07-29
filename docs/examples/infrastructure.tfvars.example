@@ -37,6 +37,10 @@ vm_cpu_cores = 2                         # Default number of CPU cores
 # RAM
 vm_memory_mb = 4096                      # Default RAM in MB
 
+# Ballooning: Proxmox can reclaim RAM down to vm_memory_floating_mb
+vm_balloon_enabled = false
+# vm_memory_floating_mb = 2048           # defaults to vm_memory_mb
+
 # System disk
 vm_disk_size_gb   = 20                   # Default system disk size in GB
 vm_disk_interface = "scsi0"              # Disk interface (scsi0, virtio0, etc.)
@@ -67,6 +71,11 @@ dns_servers     = ["1.1.1.1", "8.8.8.8"] # DNS servers
 # Cloud-init
 # -----------------------------------------------------------------------------
 cloudinit_user = "ubuntu"                # Default user created by cloud-init
+
+# -----------------------------------------------------------------------------
+# Safety
+# -----------------------------------------------------------------------------
+vm_protection = false                    # Blocks VM/disk removal (override per VM)
 
 # -----------------------------------------------------------------------------
 # Startup

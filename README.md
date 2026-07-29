@@ -20,6 +20,7 @@ ProxFleet simplifies VM provisioning on Proxmox VE using Terraform. It separates
 - Multi-disk and multi-NIC support
 - VLAN tagging
 - Cloud-init integration
+- Optional RAM ballooning (global or per-VM)
 - QEMU Guest Agent support for reliable disk resizing
 - Input validation
 - Per-VM override of any global default
@@ -95,7 +96,22 @@ vms = {
 }
 ```
 
+### Cloud-init changes are not re-applied
+
+To avoid VM restarts, `initialization` is in `ignore_changes`. **Changing IP, DNS, user, password or SSH key after creation has no effect.** To re-apply, recreate the VM:
+
+```bash
+terraform apply -replace='proxmox_virtual_environment_vm.vm["<vm-key>"]' \
+  -var-file=config/infrastructure.tfvars -var-file=config/vms.tfvars
+```
+
 See [docs/EXAMPLES.md](docs/EXAMPLES.md) for more examples.
+
+---
+
+## Remote State
+
+State is local by default (`terraform.tfstate`). It contains sensitive data and losing it orphans your VMs. For team use, enable the backend example in `versions.tf` and run `terraform init -migrate-state`.
 
 ---
 

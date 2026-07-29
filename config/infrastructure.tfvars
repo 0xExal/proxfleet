@@ -1,20 +1,11 @@
-# =============================================================================
-# Proxmox Infrastructure Configuration - SAFE TO COMMIT
-# =============================================================================
-# This file contains non-sensitive infrastructure configuration
-# It can be committed to Git for GitOps
+# Infrastructure defaults - no secrets, safe to commit
+# Credentials go in config/.env
 
 # -----------------------------------------------------------------------------
-# Proxmox Connection (without credentials)
+# Proxmox Connection
 # -----------------------------------------------------------------------------
-proxmox_endpoint     = "https://your-proxmox.local:8006/api2/json"
-proxmox_insecure     = true
-proxmox_ssh_username = "root"
-
-# SSH Operations (OPTIONAL - disabled by default)
-# Enable only if you need automatic cleanup of orphaned cloud-init disks
-# or advanced disk resize wait logic. Most deployments work fine without SSH.
-enable_ssh_operations = false
+proxmox_endpoint = "https://your-proxmox.local:8006/api2/json"
+proxmox_insecure = true
 
 # -----------------------------------------------------------------------------
 # Nodes and Template
@@ -42,6 +33,10 @@ vm_cpu_cores = 6
 
 # RAM
 vm_memory_mb = 4096
+
+# Ballooning: Proxmox can reclaim RAM down to vm_memory_floating_mb
+vm_balloon_enabled = false
+# vm_memory_floating_mb = 2048  # defaults to vm_memory_mb
 
 # System disk
 vm_disk_size_gb   = 20
@@ -73,6 +68,12 @@ dns_servers     = ["1.1.1.1", "8.8.8.8"]
 # Cloud-init
 # -----------------------------------------------------------------------------
 cloudinit_user = "ubuntu"
+
+# -----------------------------------------------------------------------------
+# Safety
+# -----------------------------------------------------------------------------
+# Blocks VM/disk removal (override per VM)
+vm_protection = false
 
 # -----------------------------------------------------------------------------
 # Startup

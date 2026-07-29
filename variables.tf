@@ -83,6 +83,23 @@ variable "vm_memory_mb" {
   }
 }
 
+variable "vm_balloon_enabled" {
+  description = "Enable memory ballooning by default (floating memory). Requires the balloon driver in the guest."
+  type        = bool
+  default     = false
+}
+
+variable "vm_memory_floating_mb" {
+  description = "Default minimum RAM in MB when ballooning is enabled. Defaults to vm_memory_mb (full range) if null."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.vm_memory_floating_mb == null || try(var.vm_memory_floating_mb >= 0, false)
+    error_message = "Floating memory must be >= 0 MB."
+  }
+}
+
 variable "vm_disk_size_gb" {
   description = "System disk size in GB (must be >= template size)"
   type        = number
@@ -211,6 +228,12 @@ variable "vm_agent_timeout" {
   default     = "15m"
 }
 
+variable "vm_protection" {
+  description = "Enable the Proxmox protection flag by default (blocks VM and disk removal)."
+  type        = bool
+  default     = false
+}
+
 variable "vm_start_on_create" {
   description = "Automatically start VM after creation"
   type        = bool
@@ -248,9 +271,11 @@ variable "vms" {
     cloudinit_datastore_id = optional(string)
 
     # Ressources CPU/RAM
-    vm_cpu_cores = optional(number)
-    cpu_type     = optional(string)
-    vm_memory_mb = optional(number)
+    vm_cpu_cores          = optional(number)
+    vm_cpu_type           = optional(string)
+    vm_memory_mb          = optional(number)
+    balloon_enabled       = optional(bool)
+    vm_memory_floating_mb = optional(number)
 
     # System disk
     vm_disk_size_gb            = optional(number)
@@ -291,6 +316,9 @@ variable "vms" {
     # QEMU Guest Agent
     agent_enabled = optional(bool)
     agent_timeout = optional(string)
+
+    # Safety
+    protection = optional(bool)
 
     # Startup
     start_on_create = optional(bool)

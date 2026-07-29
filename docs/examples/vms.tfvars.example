@@ -15,7 +15,7 @@ vms = {
     # Resources (uses defaults from infrastructure.tfvars if not specified)
     vm_cpu_cores    = 2
     vm_memory_mb    = 4096
-    vm_disk_size = 50
+    vm_disk_size_gb = 50
 
     # Network - will use DHCP from infrastructure defaults
     vm_use_dhcp = true
@@ -33,13 +33,16 @@ vms = {
     # Resources
     vm_cpu_cores    = 4
     vm_memory_mb    = 8192
-    vm_disk_size = 100
+    vm_disk_size_gb = 100
 
     # Static IP configuration
     vm_use_dhcp     = false
     vm_ipv4_address = "192.168.1.10/24"
     vm_ipv4_gateway = "192.168.1.1"
     dns_servers     = ["1.1.1.1", "8.8.8.8"]
+
+    # blocks VM/disk removal
+    protection = true
   }
 
   # ---------------------------------------------------------------------------
@@ -53,7 +56,7 @@ vms = {
 
     vm_cpu_cores    = 2
     vm_memory_mb    = 4096
-    vm_disk_size = 50
+    vm_disk_size_gb = 50
 
     # Network device with VLAN tagging
     network_devices = [
@@ -78,7 +81,7 @@ vms = {
 
     vm_cpu_cores    = 4
     vm_memory_mb    = 8192
-    vm_disk_size = 50  # System disk
+    vm_disk_size_gb = 50  # System disk
 
     # Additional data disks
     additional_disks = [
@@ -108,7 +111,7 @@ vms = {
 
     vm_cpu_cores    = 2
     vm_memory_mb    = 2048
-    vm_disk_size = 30
+    vm_disk_size_gb = 30
 
     # Multiple network interfaces (WAN, LAN, DMZ)
     network_devices = [
@@ -145,7 +148,11 @@ vms = {
     vm_cpu_type  = "host"  # Pass through host CPU features
     vm_cpu_cores = 8
     vm_memory_mb = 16384
-    vm_disk_size = 200
+    vm_disk_size_gb = 200
+
+    # Ballooning: Proxmox can reclaim RAM down to vm_memory_floating_mb
+    balloon_enabled       = true
+    vm_memory_floating_mb = 8192  # defaults to vm_memory_mb
 
     # Disable disk resize if template already has correct size
     skip_disk_resize_on_create = false
